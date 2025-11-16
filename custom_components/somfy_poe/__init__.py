@@ -3,17 +3,22 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+# Allow importing API modules for testing without Home Assistant installed
+try:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.const import Platform
+    from homeassistant.core import HomeAssistant
 
-from .api.client import SomfyClient
-from .const import DOMAIN, CONF_HOST, CONF_TARGET_ID, CONF_KEY
-from .coordinator import SomfyDataUpdateCoordinator
+    from .api.client import SomfyClient
+    from .const import DOMAIN, CONF_HOST, CONF_TARGET_ID, CONF_KEY
+    from .coordinator import SomfyDataUpdateCoordinator
+
+    PLATFORMS: list[Platform] = [Platform.COVER]
+except ImportError:
+    # Running in test mode without Home Assistant
+    pass
 
 _LOGGER = logging.getLogger(__name__)
-
-PLATFORMS: list[Platform] = [Platform.COVER]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

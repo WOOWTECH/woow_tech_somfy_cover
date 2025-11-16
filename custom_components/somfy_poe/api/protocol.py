@@ -36,6 +36,7 @@ class SomfyProtocol:
 
         self._target_id = target_id.upper()
         self._request_id = 0
+        _LOGGER.debug("Initialized SomfyProtocol with target_id=%s", self._target_id)
 
     def build_request(
         self,
@@ -63,7 +64,15 @@ class SomfyProtocol:
             "id": self._request_id,
         }
 
-        return json.dumps(request, separators=(",", ":"))  # Compact JSON
+        json_str = json.dumps(request, separators=(",", ":"))
+        _LOGGER.debug(
+            "Built JSON-RPC request #%d: method=%s, params=%s, full_payload=%s",
+            self._request_id,
+            method,
+            request_params,
+            json_str
+        )
+        return json_str  # Compact JSON
 
     def parse_response(self, response: str) -> Any:
         """Parse JSON-RPC response.
@@ -78,10 +87,14 @@ class SomfyProtocol:
             SomfyProtocolError: If response is malformed
             SomfyAPIError: If response contains error
         """
+        _LOGGER.debug("Parsing JSON-RPC response: %s", response)
+
         try:
             data = json.loads(response)
         except json.JSONDecodeError as err:
             raise SomfyProtocolError(f"Invalid JSON response: {err}") from err
+
+        _LOGGER.debug("Parsed response structure: %s", data)
 
         # Validate JSON-RPC structure
         if not isinstance(data, dict):
@@ -97,12 +110,19 @@ class SomfyProtocol:
                 code = -1
                 message = str(error)
 
+            _LOGGER.debug(
+                "API returned error response: code=%s, message=%s, full_error=%s",
+                code,
+                message,
+                error
+            )
             raise SomfyAPIError(message, code)
 
         # Extract result
         if "result" not in data:
             raise SomfyProtocolError("Response missing 'result' field")
 
+        _LOGGER.debug("Extracted result from response: %s", data.get("result"))
         return data
 
     @property

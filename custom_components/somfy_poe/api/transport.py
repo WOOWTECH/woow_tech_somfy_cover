@@ -115,12 +115,22 @@ class SomfyTransport:
             raise SomfyConnectionError("Encryption not configured")
 
         timeout = timeout if timeout is not None else self._default_timeout
+        _LOGGER.debug("Sending encrypted request with timeout: %s seconds", timeout)
 
         async with self._lock:  # Serialize requests
             try:
+                # Log plaintext before encryption
+                _LOGGER.debug("Outgoing plaintext payload: %s", plaintext)
+
                 # Encrypt outgoing message
                 encrypted_data = self._encryption.encrypt(plaintext)
 
+                _LOGGER.debug(
+                    "Encrypted payload: %s (IV: %s, ciphertext: %d bytes)",
+                    encrypted_data.hex(),
+                    encrypted_data[:16].hex(),
+                    len(encrypted_data) - 16
+                )
                 _LOGGER.debug("Sending encrypted data (%d bytes)", len(encrypted_data))
 
                 # Send and wait for response
@@ -130,6 +140,12 @@ class SomfyTransport:
                 encrypted_response = await asyncio.wait_for(
                     self._protocol.wait_for_response(),
                     timeout=timeout,
+                )
+
+                _LOGGER.debug(
+                    "Received encrypted response: %s (%d bytes)",
+                    encrypted_response.hex(),
+                    len(encrypted_response)
                 )
 
                 # Decrypt response

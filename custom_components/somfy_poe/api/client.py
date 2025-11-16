@@ -67,6 +67,14 @@ class SomfyClient:
         self._host = host
         self._target_id = target_id
 
+        _LOGGER.debug(
+            "Initialized SomfyClient: host=%s, target_id=%s, port=%s, timeout=%s",
+            host,
+            target_id,
+            port,
+            timeout
+        )
+
     async def __aenter__(self) -> SomfyClient:
         """Async context manager entry."""
         await self.connect()
@@ -78,10 +86,12 @@ class SomfyClient:
 
     async def connect(self) -> None:
         """Connect to device."""
+        _LOGGER.debug("Connecting to device at %s", self._host)
         await self._transport.connect()
 
     async def close(self) -> None:
         """Close connection."""
+        _LOGGER.debug("Closing connection to %s", self._host)
         await self._transport.close()
 
     async def ping(self) -> bool:
@@ -117,6 +127,8 @@ class SomfyClient:
         response = await self._transport.send_encrypted(request)
         result = self._protocol.parse_response(response)
 
+        _LOGGER.debug("Received device info response: %s", result)
+
         return DeviceInfo.from_api_response(result)
 
     async def get_position(self) -> PositionStatus:
@@ -128,9 +140,12 @@ class SomfyClient:
         Raises:
             SomfyError: If request fails
         """
+        _LOGGER.debug("Requesting position status from device")
         request = self._protocol.build_request(METHOD_STATUS_POSITION)
         response = await self._transport.send_encrypted(request)
         result = self._protocol.parse_response(response)
+
+        _LOGGER.debug("Received position response: %s", result)
 
         return PositionStatus.from_api_response(result)
 
@@ -143,7 +158,7 @@ class SomfyClient:
         request = self._protocol.build_request(METHOD_MOVE_UP)
         response = await self._transport.send_encrypted(request)
         self._protocol.parse_response(response)
-        _LOGGER.debug("Move up command sent")
+        _LOGGER.debug("Move up (open) command sent to target %s", self._target_id)
 
     async def move_down(self) -> None:
         """Start moving down (closing).
@@ -154,7 +169,7 @@ class SomfyClient:
         request = self._protocol.build_request(METHOD_MOVE_DOWN)
         response = await self._transport.send_encrypted(request)
         self._protocol.parse_response(response)
-        _LOGGER.debug("Move down command sent")
+        _LOGGER.debug("Move down (close) command sent to target %s", self._target_id)
 
     async def stop(self) -> None:
         """Stop movement.
@@ -165,7 +180,7 @@ class SomfyClient:
         request = self._protocol.build_request(METHOD_MOVE_STOP)
         response = await self._transport.send_encrypted(request)
         self._protocol.parse_response(response)
-        _LOGGER.debug("Stop command sent")
+        _LOGGER.debug("Stop command sent to target %s", self._target_id)
 
     async def move_to_position(self, position: float) -> None:
         """Move to specific position.
@@ -181,13 +196,18 @@ class SomfyClient:
             raise ValueError(f"Position must be 0-100, got {position}")
 
         # Round to 3 decimal places as per API spec
-        position = round(position, 3)
+        rounded_position = round(position, 3)
 
-        params = {"position": position}
+        params = {"position": rounded_position}
         request = self._protocol.build_request(METHOD_MOVE_TO, params)
         response = await self._transport.send_encrypted(request)
         self._protocol.parse_response(response)
-        _LOGGER.debug("Move to position %s command sent", position)
+        _LOGGER.debug(
+            "Move to position command sent: requested=%s, rounded=%s, target=%s",
+            position,
+            rounded_position,
+            self._target_id
+        )
 
     @property
     def is_connected(self) -> bool:

@@ -68,6 +68,12 @@ class SomfyCover(CoordinatorEntity[SomfyDataUpdateCoordinator], CoverEntity):
             | CoverEntityFeature.SET_POSITION
         )
 
+        _LOGGER.debug(
+            "Initialized cover entity: unique_id=%s, features=%s",
+            self._attr_unique_id,
+            self._attr_supported_features
+        )
+
     @property
     def current_cover_position(self) -> int | None:
         """Return current position (0 closed - 100 open).
@@ -76,18 +82,28 @@ class SomfyCover(CoordinatorEntity[SomfyDataUpdateCoordinator], CoverEntity):
         We need to invert this for HA (0=closed, 100=open)
         """
         if self.coordinator.data is None:
+            _LOGGER.debug("Position unknown: coordinator data is None")
             return None
 
         position = self.coordinator.data.position
         if position is None:
+            _LOGGER.debug("Position unknown: API returned None")
             return None
 
         # Invert position: Somfy 0=open/up, 100=closed/down
         # HA expects: 0=closed, 100=open
         inverted = 100 - position
+        rounded = round(inverted)
+
+        _LOGGER.debug(
+            "Position conversion: somfy=%s, inverted=%s, rounded=%s",
+            position,
+            inverted,
+            rounded
+        )
 
         # Convert to integer for HA (0-100)
-        return round(inverted)
+        return rounded
 
     @property
     def is_closed(self) -> bool | None:
@@ -121,19 +137,24 @@ class SomfyCover(CoordinatorEntity[SomfyDataUpdateCoordinator], CoverEntity):
     def state(self) -> str:
         """Return the state of the cover."""
         if self.coordinator.data is None:
+            _LOGGER.debug("State defaulting to OPEN (no coordinator data)")
             return STATE_OPEN
 
         # Check movement state
         if self.coordinator.data.is_opening:
+            _LOGGER.debug("State: OPENING (moving up)")
             return STATE_OPENING
         elif self.coordinator.data.is_closing:
+            _LOGGER.debug("State: CLOSING (moving down)")
             return STATE_CLOSING
 
         # If stopped, determine open/closed from position
         position = self.current_cover_position
         if position is not None and position == 0:
+            _LOGGER.debug("State: CLOSED (position=0)")
             return STATE_CLOSED
 
+        _LOGGER.debug("State: OPEN (default)")
         return STATE_OPEN
 
     async def async_open_cover(self, **kwargs: Any) -> None:
@@ -169,7 +190,12 @@ class SomfyCover(CoordinatorEntity[SomfyDataUpdateCoordinator], CoverEntity):
         # Somfy: 0=open/up, 100=closed/down
         somfy_position = 100 - position
 
-        _LOGGER.debug("Setting cover position to %s (Somfy: %s)", position, somfy_position)
+        _LOGGER.debug(
+            "Setting cover position: ha_position=%s, somfy_position=%s, current=%s",
+            position,
+            somfy_position,
+            self.current_cover_position
+        )
         await self.coordinator.async_move_to_position(float(somfy_position))
 
         # Request immediate refresh
@@ -183,4 +209,10 @@ class SomfyCover(CoordinatorEntity[SomfyDataUpdateCoordinator], CoverEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from coordinator."""
+        _LOGGER.debug(
+            "Coordinator update received: position=%s, state=%s, available=%s",
+            self.current_cover_position,
+            self.state,
+            self.available
+        )
         self.async_write_ha_state()

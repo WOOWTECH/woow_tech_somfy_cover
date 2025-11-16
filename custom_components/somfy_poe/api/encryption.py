@@ -1,10 +1,13 @@
 """AES-128-CBC encryption for Somfy PoE API."""
 from __future__ import annotations
 
+import logging
 import secrets
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
+
+_LOGGER = logging.getLogger(__name__)
 
 BLOCK_SIZE = 16  # AES block size in bytes
 
@@ -37,6 +40,8 @@ class SomfyEncryption:
         if len(self._key_bytes) != 16:
             raise ValueError("Key must be 16 bytes (128 bits)")
 
+        _LOGGER.debug("Initialized encryption with 128-bit AES-CBC key")
+
     def encrypt(self, plaintext: str) -> bytes:
         """Encrypt plaintext with random IV.
 
@@ -48,10 +53,16 @@ class SomfyEncryption:
         """
         # Generate random IV for each message
         iv = secrets.token_bytes(BLOCK_SIZE)
+        _LOGGER.debug("Generated IV: %s", iv.hex())
 
         # Pad plaintext to block size (PKCS7)
         plaintext_bytes = plaintext.encode("utf-8")
         padded = self._pad_pkcs7(plaintext_bytes)
+        _LOGGER.debug(
+            "Encryption: plaintext=%d bytes, padded=%d bytes",
+            len(plaintext_bytes),
+            len(padded)
+        )
 
         # Encrypt
         cipher = Cipher(
@@ -59,6 +70,13 @@ class SomfyEncryption:
         )
         encryptor = cipher.encryptor()
         ciphertext = encryptor.update(padded) + encryptor.finalize()
+
+        _LOGGER.debug(
+            "Encryption complete: IV=%s, ciphertext=%d bytes, total=%d bytes",
+            iv.hex(),
+            len(ciphertext),
+            len(iv) + len(ciphertext)
+        )
 
         # Return IV + ciphertext
         return iv + ciphertext
@@ -81,6 +99,11 @@ class SomfyEncryption:
         # Extract IV and ciphertext
         iv = data[:BLOCK_SIZE]
         ciphertext = data[BLOCK_SIZE:]
+        _LOGGER.debug(
+            "Decryption: IV=%s, ciphertext=%d bytes",
+            iv.hex(),
+            len(ciphertext)
+        )
 
         # Decrypt
         cipher = Cipher(
@@ -91,6 +114,11 @@ class SomfyEncryption:
 
         # Remove padding
         plaintext = self._unpad_pkcs7(padded_plaintext)
+        _LOGGER.debug(
+            "Decryption complete: padded=%d bytes, unpadded=%d bytes",
+            len(padded_plaintext),
+            len(plaintext)
+        )
         return plaintext.decode("utf-8")
 
     @staticmethod
@@ -113,6 +141,12 @@ class SomfyEncryption:
         padding_length = data[-1]
         if padding_length < 1 or padding_length > BLOCK_SIZE:
             raise ValueError(f"Invalid padding length: {padding_length}")
+
+        _LOGGER.debug(
+            "PKCS7 padding: length=%d, total_data=%d bytes",
+            padding_length,
+            len(data)
+        )
 
         # Verify all padding bytes are correct
         padding = data[-padding_length:]

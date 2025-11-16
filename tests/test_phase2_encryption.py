@@ -11,7 +11,7 @@ from custom_components.somfy_poe.api.client import SomfyClient
 
 async def test_encrypted_status():
     """Test encrypted communication with device info."""
-    # Configuration - UPDATE THESE VALUES
+    # Configuration
     HOST = "10.1.1.10"
     TARGET_ID = "160326"
     KEY = "FBE90399BA25B4B67DC1B23BE0D9C084"

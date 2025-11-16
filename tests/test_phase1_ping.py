@@ -12,7 +12,7 @@ from custom_components.somfy_poe.api.transport import SomfyTransport
 
 async def test_ping():
     """Test basic UDP communication with unencrypted ping."""
-    # Configuration - UPDATE THESE VALUES
+    # Configuration
     HOST = "10.1.1.10"
     TARGET_ID = "160326"
 

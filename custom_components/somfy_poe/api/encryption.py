@@ -1,0 +1,122 @@
+"""AES-128-CBC encryption for Somfy PoE API."""
+from __future__ import annotations
+
+import secrets
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+
+BLOCK_SIZE = 16  # AES block size in bytes
+
+
+class SomfyEncryption:
+    """Handle AES-128-CBC encryption/decryption for Somfy protocol.
+
+    Design Decisions:
+    - Uses 'cryptography' library (recommended by HA, well-maintained)
+    - Stateless design - no IV caching
+    - Each encrypt() generates random IV
+    - IV is prepended to ciphertext as per protocol
+    """
+
+    def __init__(self, key: str) -> None:
+        """Initialize encryption with hex key string.
+
+        Args:
+            key: 32-character hex string (16 bytes)
+
+        Raises:
+            ValueError: If key format is invalid
+        """
+        if len(key) != 32 or not all(
+            c in "0123456789ABCDEFabcdef" for c in key
+        ):
+            raise ValueError("Key must be 32-character hex string")
+
+        self._key_bytes = bytes.fromhex(key)
+        if len(self._key_bytes) != 16:
+            raise ValueError("Key must be 16 bytes (128 bits)")
+
+    def encrypt(self, plaintext: str) -> bytes:
+        """Encrypt plaintext with random IV.
+
+        Args:
+            plaintext: UTF-8 string to encrypt
+
+        Returns:
+            IV (16 bytes) + ciphertext with PKCS7 padding
+        """
+        # Generate random IV for each message
+        iv = secrets.token_bytes(BLOCK_SIZE)
+
+        # Pad plaintext to block size (PKCS7)
+        plaintext_bytes = plaintext.encode("utf-8")
+        padded = self._pad_pkcs7(plaintext_bytes)
+
+        # Encrypt
+        cipher = Cipher(
+            algorithms.AES(self._key_bytes), modes.CBC(iv), backend=default_backend()
+        )
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(padded) + encryptor.finalize()
+
+        # Return IV + ciphertext
+        return iv + ciphertext
+
+    def decrypt(self, data: bytes) -> str:
+        """Decrypt data with prepended IV.
+
+        Args:
+            data: IV (16 bytes) + ciphertext
+
+        Returns:
+            Decrypted UTF-8 string
+
+        Raises:
+            ValueError: If data is too short or padding invalid
+        """
+        if len(data) < BLOCK_SIZE + 1:
+            raise ValueError("Data too short to contain IV and ciphertext")
+
+        # Extract IV and ciphertext
+        iv = data[:BLOCK_SIZE]
+        ciphertext = data[BLOCK_SIZE:]
+
+        # Decrypt
+        cipher = Cipher(
+            algorithms.AES(self._key_bytes), modes.CBC(iv), backend=default_backend()
+        )
+        decryptor = cipher.decryptor()
+        padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+        # Remove padding
+        plaintext = self._unpad_pkcs7(padded_plaintext)
+        return plaintext.decode("utf-8")
+
+    @staticmethod
+    def _pad_pkcs7(data: bytes) -> bytes:
+        """Apply PKCS7 padding."""
+        padding_length = BLOCK_SIZE - (len(data) % BLOCK_SIZE)
+        padding = bytes([padding_length] * padding_length)
+        return data + padding
+
+    @staticmethod
+    def _unpad_pkcs7(data: bytes) -> bytes:
+        """Remove PKCS7 padding.
+
+        Raises:
+            ValueError: If padding is invalid
+        """
+        if not data:
+            raise ValueError("Cannot unpad empty data")
+
+        padding_length = data[-1]
+        if padding_length < 1 or padding_length > BLOCK_SIZE:
+            raise ValueError(f"Invalid padding length: {padding_length}")
+
+        # Verify all padding bytes are correct
+        padding = data[-padding_length:]
+        if not all(b == padding_length for b in padding):
+            raise ValueError("Invalid PKCS7 padding")
+
+        return data[:-padding_length]

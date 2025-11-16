@@ -95,9 +95,11 @@ class SomfyPoeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         async with client:
-            # Try to ping the device
-            success = await client.ping()
-            if not success:
-                raise SomfyError("Device did not respond to ping")
-
-            _LOGGER.debug("Successfully connected to device")
+            # Test with encrypted communication (device doesn't respond to unencrypted ping)
+            device_info = await client.get_device_info()
+            _LOGGER.debug(
+                "Successfully connected to device: %s (model: %s, firmware: %s)",
+                device_info.name,
+                device_info.model,
+                device_info.firmware
+            )

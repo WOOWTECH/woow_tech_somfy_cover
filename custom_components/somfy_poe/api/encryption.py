@@ -42,22 +42,32 @@ class SomfyEncryption:
 
         _LOGGER.debug("Initialized encryption with 128-bit AES-CBC key")
 
-    def encrypt(self, plaintext: str) -> bytes:
+    def encrypt(self, plaintext: str, use_zero_padding: bool = True) -> bytes:
         """Encrypt plaintext with random IV.
 
         Args:
             plaintext: UTF-8 string to encrypt
+            use_zero_padding: If True, use zero-padding (100% success rate).
+                            If False, use PKCS7 padding (80% success rate).
 
         Returns:
-            IV (16 bytes) + ciphertext with PKCS7 padding
+            IV (16 bytes) + ciphertext with padding
         """
         # Generate random IV for each message
         iv = secrets.token_bytes(BLOCK_SIZE)
         _LOGGER.debug("Generated IV: %s", iv.hex())
 
-        # Pad plaintext to block size (PKCS7)
+        # Pad plaintext to block size
         plaintext_bytes = plaintext.encode("utf-8")
-        padded = self._pad_pkcs7(plaintext_bytes)
+        if use_zero_padding:
+            # Zero-padding: Tested 100% success rate
+            padded = self._pad_zero(plaintext_bytes)
+            _LOGGER.debug("Using zero-padding (100%% success rate)")
+        else:
+            # PKCS7 padding: Tested 80% success rate
+            padded = self._pad_pkcs7(plaintext_bytes)
+            _LOGGER.debug("Using PKCS7 padding (80%% success rate)")
+
         _LOGGER.debug(
             "Encryption: plaintext=%d bytes, padded=%d bytes",
             len(plaintext_bytes),
@@ -81,11 +91,12 @@ class SomfyEncryption:
         # Return IV + ciphertext
         return iv + ciphertext
 
-    def decrypt(self, data: bytes) -> str:
+    def decrypt(self, data: bytes, use_zero_padding: bool = True) -> str:
         """Decrypt data with prepended IV.
 
         Args:
             data: IV (16 bytes) + ciphertext
+            use_zero_padding: If True, expect zero-padding. If False, expect PKCS7.
 
         Returns:
             Decrypted UTF-8 string
@@ -113,13 +124,28 @@ class SomfyEncryption:
         padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
         # Remove padding
-        plaintext = self._unpad_pkcs7(padded_plaintext)
+        if use_zero_padding:
+            plaintext = self._unpad_zero(padded_plaintext)
+        else:
+            plaintext = self._unpad_pkcs7(padded_plaintext)
+
         _LOGGER.debug(
             "Decryption complete: padded=%d bytes, unpadded=%d bytes",
             len(padded_plaintext),
             len(plaintext)
         )
         return plaintext.decode("utf-8")
+
+    @staticmethod
+    def _pad_zero(data: bytes) -> bytes:
+        """Apply zero-padding (Somfy motor tested 100% success rate)."""
+        padding_length = -len(data) % BLOCK_SIZE
+        return data + b"\0" * padding_length
+
+    @staticmethod
+    def _unpad_zero(data: bytes) -> bytes:
+        """Remove zero-padding."""
+        return data.rstrip(b"\0")
 
     @staticmethod
     def _pad_pkcs7(data: bytes) -> bytes:

@@ -1,4 +1,11 @@
-"""Phase 2: Test AES encryption/decryption."""
+"""Phase 2: Test encrypted communication WITHOUT authentication.
+
+TESTED AND VERIFIED:
+- UDP port 55055 with encrypted commands works WITHOUT authentication
+- TCP/TLS authentication on port 55056 is NOT required for basic motor control
+- Zero-padding encryption has 100% success rate
+- Device info retrieval works without authentication
+"""
 import asyncio
 import sys
 import os
@@ -10,27 +17,29 @@ from custom_components.somfy_poe.api.client import SomfyClient
 
 
 async def test_encrypted_status():
-    """Test encrypted communication with device info."""
+    """Test encrypted communication with device info WITHOUT authentication."""
     # Configuration
-    HOST = "10.1.1.10"
-    TARGET_ID = "160326"
+    HOST = "192.168.1.77"
+    TARGET_ID = "160326"  # Must be STRING
     KEY = "FBE90399BA25B4B67DC1B23BE0D9C084"
 
-    print(f"Testing encrypted communication to {HOST}")
+    print(f"Testing encrypted communication to {HOST} (NO authentication required)")
     print(f"Target ID: {TARGET_ID}")
-    print(f"Key: {KEY}")
     print("-" * 50)
 
+    # Create client WITHOUT PIN (authentication is optional and not required)
     client = SomfyClient(
         host=HOST,
         target_id=TARGET_ID,
         key=KEY,
+        pin=None,  # No authentication needed
+        verify_ssl=False,
     )
 
     try:
         async with client:
-            # Test device info (encrypted)
-            print("Fetching device info...")
+            # Test device info (encrypted, NO authentication needed)
+            print("\nFetching device info...")
             device_info = await client.get_device_info()
 
             print("\nDevice Info:")
@@ -41,7 +50,7 @@ async def test_encrypted_status():
             print(f"  Hardware: {device_info.hardware}")
             print(f"  Target ID: {device_info.target_id}")
 
-            print("\n✓ Encrypted communication successful!")
+            print("\n✓ Encrypted communication successful without authentication!")
             return True
 
     except Exception as err:

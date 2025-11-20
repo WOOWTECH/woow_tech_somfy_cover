@@ -49,3 +49,21 @@ class SomfyAPIError(SomfyError):
         """Check if error indicates end limits not set."""
         from .const import ERROR_END_LIMITS_NOT_SET
         return self.code == ERROR_END_LIMITS_NOT_SET
+
+
+class SomfyAuthenticationError(SomfyError):
+    """Authentication error.
+
+    Attributes:
+        message: Error message
+        code: Optional error code
+    """
+
+    def __init__(self, message: str, code: int | None = None) -> None:
+        """Initialize authentication error."""
+        if code is not None:
+            super().__init__(f"Auth error {code}: {message}")
+        else:
+            super().__init__(f"Auth error: {message}")
+        self.message = message
+        self.code = code

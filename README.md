@@ -1,4 +1,4 @@
-# Somfy PoE Motor - Home Assistant Integration
+# WoowTech Somfy Cover - Home Assistant Integration
 
 A Home Assistant custom component for controlling Somfy PoE (Power over Ethernet) motorized covers using the Synergy JSON-RPC API over encrypted UDP.
 
@@ -12,9 +12,10 @@ This integration has been tested and verified working with a Somfy Sonesse 30 Po
 - Real-time position tracking with adaptive polling
 - AES-128-CBC encryption for secure communication
 - Automatic polling optimization (fast during movement, slow when idle)
-- Config flow for easy setup via UI
+- **Dual configuration methods**: Config Flow (UI) and YAML (both can coexist)
 - Clean architecture with separated network and protocol layers
 - Comprehensive error handling
+- **Extensive documentation suite**: 66,000+ words covering architecture, API, configuration, testing, and development
 
 ## Supported Devices
 
@@ -33,20 +34,46 @@ Should also work with:
 Copy the integration to your Home Assistant custom_components folder:
 
 ```bash
-cp -r custom_components/somfy_poe /config/custom_components/
+cp -r custom_components/woow_tech_somfy_cover /config/custom_components/
 ```
 
 Restart Home Assistant.
 
 ### 2. Configuration
 
-Go to **Settings** → **Devices & Services** → **+ Add Integration** → Search for "Somfy PoE Motor"
+You can configure this integration using **either** method (or both - they can coexist):
+
+#### Option A: Config Flow (UI Setup)
+
+Go to **Settings** → **Devices & Services** → **+ Add Integration** → Search for "WoowTech Somfy Cover"
 
 You'll need:
 - **Name**: Friendly name (e.g., "Living Room Shade")
-- **IP Address**: Motor's IP on your network (e.g., 192.168.1.77)
-- **Target ID**: 6-character hex string from MAC address (e.g., "160326")
-- **Encryption Key**: 32-character hex key from motor label
+- **Host**: Motor's IP address on your network (e.g., "192.168.1.77")
+  - Validation: Must be a valid IPv4 address
+- **Target ID**: 6-character hexadecimal string from MAC address (e.g., "160326")
+  - Validation: Exactly 6 hex characters
+- **Key**: 32-character hexadecimal encryption key from motor label
+  - Validation: Exactly 32 hex characters
+
+The integration will test the connection before creating the entry.
+
+#### Option B: YAML Configuration (configuration.yaml)
+
+Add to your `configuration.yaml`:
+
+```yaml
+cover:
+  - platform: woow_tech_somfy_cover
+    name: Living Room Shade          # Optional, default: "Somfy Cover"
+    host: 192.168.1.77               # Required: IP address
+    target_id: 160326                # Required: Can be quoted or unquoted (v1.0.2+)
+    key: FBE90399BA25B4B67DC1B23BE0D9C084  # Required: Can be quoted or unquoted (v1.0.2+)
+```
+
+**Note**: Since v1.0.2, `target_id` and `key` can be specified with or without quotes for better UX.
+
+Restart Home Assistant after editing `configuration.yaml`.
 
 ### 3. Finding Your Configuration Values
 
@@ -55,7 +82,7 @@ The Target ID is the last 3 bytes of the MAC address:
 - MAC Address: `4C:C2:06:16:03:26`
 - Target ID: `160326` (last 6 characters, no colons)
 
-**IMPORTANT**: Must be entered as a STRING, not a number!
+**Note**: In UI, enter as string. In YAML (v1.0.2+), can be quoted or unquoted.
 
 #### Encryption Key
 The encryption key should be:
@@ -65,18 +92,26 @@ The encryption key should be:
 
 Example: `FBE90399BA25B4B67DC1B23BE0D9C084`
 
+**Note**: In UI, enter as string. In YAML (v1.0.2+), can be quoted or unquoted.
+
 ## Testing Before Installation
 
-Before installing the integration, you can test communication with your motor using the provided test scripts:
+Before installing the integration, you can test communication with your motor using the verified test scripts:
 
 ```bash
 cd working_tests/
 
-# Test basic communication and encryption
+# Test basic low-level commands and encryption
 python3 test_decrypt_responses.py
 
-# Test motor movement (WARNING: physically moves motor)
-python3 test_motor_movement_with_position.py
+# Test encrypted ping
+python3 test_01_udp_ping_encrypted.py
+
+# Test wake-up mechanism
+python3 test_wakeup_mechanism.py
+
+# Test Home Assistant integration API
+python3 test_ha_integration_debug.py
 ```
 
 See [working_tests/README.md](working_tests/README.md) for detailed testing instructions.
@@ -221,7 +256,7 @@ This minimizes network traffic while ensuring responsive UI updates during movem
    logger:
      default: info
      logs:
-       custom_components.somfy_poe: debug
+       custom_components.woow_tech_somfy_cover: debug
    ```
 
 ### Commands Not Working
@@ -270,11 +305,11 @@ cd working_tests/
 python3 test_decrypt_responses.py
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development instructions.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed development instructions.
 
 ### Running Tests
 
-See [TESTING.md](TESTING.md) for comprehensive testing guide.
+See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing guide (12,000+ words).
 
 ### Contributing
 
@@ -291,36 +326,58 @@ Contributions are welcome! Please:
 ```
 woowtech_somfy_new/
 ├── README.md                          (this file)
-├── DEVELOPMENT.md                     (development guide)
-├── TESTING.md                         (testing guide)
-├── working_tests/                     (standalone test scripts)
+├── docs/                              (comprehensive documentation - 66,000+ words)
+│   ├── DOCUMENTATION_INDEX.md         (documentation hub)
+│   ├── ARCHITECTURE.md                (system architecture - 23,000 words)
+│   ├── API_REFERENCE.md               (complete API docs - 17,000 words)
+│   ├── CONFIGURATION.md               (configuration guide - 14,000 words)
+│   ├── TESTING.md                     (testing guide - 12,000 words)
+│   ├── DEVELOPMENT.md                 (development guide)
+│   └── WAKEUP_IMPLEMENTATION.md       (wake-up mechanism details)
+├── working_tests/                     (verified standalone test scripts)
 │   ├── README.md                      (test documentation)
-│   ├── test_decrypt_responses.py      (main working test)
-│   ├── test_motor_movement_with_position.py
+│   ├── test_decrypt_responses.py      (low-level command test)
+│   ├── test_01_udp_ping_encrypted.py  (encrypted ping test)
+│   ├── test_wakeup_mechanism.py       (wake-up mechanism test)
+│   ├── test_ha_integration_debug.py   (HA integration API test)
 │   └── ... (other test files)
 ├── custom_components/
-│   └── somfy_poe/                     (Home Assistant integration)
+│   └── woow_tech_somfy_cover/         (Home Assistant integration)
 │       ├── __init__.py
 │       ├── manifest.json
-│       ├── config_flow.py
-│       ├── coordinator.py
-│       ├── cover.py
-│       ├── const.py
+│       ├── config_flow.py             (UI configuration flow)
+│       ├── coordinator.py             (data update coordinator)
+│       ├── cover.py                   (cover entity)
+│       ├── const.py                   (constants)
 │       └── api/
-│           ├── client.py
-│           ├── encryption.py
-│           ├── transport.py
-│           ├── protocol.py
-│           ├── models.py
-│           └── exceptions.py
+│           ├── client.py              (high-level API client)
+│           ├── encryption.py          (AES-128-CBC encryption)
+│           ├── transport.py           (UDP communication)
+│           ├── protocol.py            (JSON-RPC protocol)
+│           ├── models.py              (data models)
+│           └── exceptions.py          (custom exceptions)
 └── tests/                             (integration tests)
 ```
 
 ## Documentation
 
-- [Working Tests README](working_tests/README.md) - Test script documentation
-- [TESTING.md](TESTING.md) - Comprehensive testing guide
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Development environment and code guide
+### Comprehensive Documentation Suite (66,000+ words)
+
+Start here:
+- [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) - Documentation hub and navigation
+
+Core documentation:
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design (23,000 words)
+- [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - Complete API reference (17,000 words)
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration guide (14,000 words)
+- [docs/TESTING.md](docs/TESTING.md) - Comprehensive testing guide (12,000 words)
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development environment and workflow
+- [docs/WAKEUP_IMPLEMENTATION.md](docs/WAKEUP_IMPLEMENTATION.md) - Wake-up mechanism details
+
+Testing documentation:
+- [working_tests/README.md](working_tests/README.md) - Test script documentation
+
+Official references:
 - [Somfy PoE Motor API Documentation](Somfy%20PoE%20Motor%20API%20for%20Integration.pdf) - Official API docs
 
 ## References
@@ -344,20 +401,41 @@ This project is provided as-is for personal use.
 
 For issues and questions:
 
-1. Check the [working_tests/README.md](working_tests/README.md)
-2. Review [TESTING.md](TESTING.md) for troubleshooting
-3. Enable debug logging in Home Assistant
-4. Run standalone test scripts to isolate issues
-5. Check Home Assistant logs for detailed error messages
+1. Start with [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) for navigation
+2. Check [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for setup help
+3. Review [docs/TESTING.md](docs/TESTING.md) for troubleshooting
+4. Check [working_tests/README.md](working_tests/README.md) for test scripts
+5. Enable debug logging in Home Assistant (see Troubleshooting section)
+6. Run standalone test scripts to isolate issues
+7. Check Home Assistant logs for detailed error messages
 
 ## Version History
 
-- **v1.0**: Initial working release
-  - UDP encrypted communication
+- **v1.0.3** (2025-11-22): Documentation release
+  - Comprehensive documentation suite (66,000+ words)
+  - Architecture guide (23,000 words)
+  - Complete API reference (17,000 words)
+  - Configuration guide (14,000 words)
+  - Testing guide (12,000 words)
+  - Development guide
+  - Wake-up implementation details
+
+- **v1.0.2** (2025-11-22): YAML UX improvement
+  - Improved YAML configuration user experience
+  - `target_id` and `key` can now be specified with or without quotes
+  - Better developer experience for configuration.yaml setup
+
+- **v1.0.1** (2025-11-22): YAML configuration support
+  - Added YAML platform configuration method
+  - Config Flow and YAML can now coexist
+  - Dual configuration options for flexibility
+
+- **v1.0.0** (2025-11-22): Initial working release
+  - UDP encrypted communication (AES-128-CBC)
   - Full motor control (up/down/stop/position)
   - Real-time position tracking
-  - Adaptive polling
-  - Config flow setup
+  - Adaptive polling (fast during movement, slow when idle)
+  - Config Flow setup (UI configuration)
 
 ## Tested Configuration
 

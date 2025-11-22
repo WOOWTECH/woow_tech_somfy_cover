@@ -1,6 +1,6 @@
 # WoowTech Somfy Cover Integration
 
-[![version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/woowtech/somfy-cover)
+[![version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/woowtech/somfy-cover)
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
 Home Assistant custom integration for Somfy PoE motors with encrypted UDP communication.
@@ -35,6 +35,10 @@ Home Assistant custom integration for Somfy PoE motors with encrypted UDP commun
 
 ## Configuration
 
+This integration supports two configuration methods that can coexist:
+
+### Method 1: Via UI (Config Flow)
+
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ ADD INTEGRATION**
 3. Search for "WoowTech Somfy Cover"
@@ -43,6 +47,54 @@ Home Assistant custom integration for Somfy PoE motors with encrypted UDP commun
    - **IP Address**: Motor's IP address on your network
    - **Target ID**: 6-digit hexadecimal ID (found on motor label)
    - **Encryption Key**: 32-digit hexadecimal key (found on motor label)
+
+### Method 2: Via YAML (configuration.yaml)
+
+Add the following to your `configuration.yaml`:
+
+```yaml
+cover:
+  - platform: woow_tech_somfy_cover
+    name: Living Room Shade
+    host: 192.168.1.77
+    target_id: "160326"
+    key: "FBE90399BA25B4B67DC1B23BE0D9C084"
+```
+
+**Multiple covers:**
+
+```yaml
+cover:
+  - platform: woow_tech_somfy_cover
+    name: Living Room Shade
+    host: 192.168.1.77
+    target_id: "160326"
+    key: "FBE90399BA25B4B67DC1B23BE0D9C084"
+
+  - platform: woow_tech_somfy_cover
+    name: Bedroom Shade
+    host: 192.168.1.78
+    target_id: "160327"
+    key: "ABC90399BA25B4B67DC1B23BE0D9C085"
+```
+
+**Configuration Variables:**
+
+- `platform` (Required): Must be `woow_tech_somfy_cover`
+- `name` (Optional): Friendly name for the cover. Default: `Somfy Cover`
+- `host` (Required): IP address of the Somfy motor
+- `target_id` (Required): 6-digit hexadecimal target ID
+- `key` (Required): 32-digit hexadecimal encryption key
+
+After adding YAML configuration, restart Home Assistant to apply changes.
+
+### Coexistence
+
+You can use both configuration methods simultaneously:
+- Some covers configured via UI (Config Flow)
+- Other covers configured via YAML
+- No conflicts between the two methods
+- Each cover operates independently with its own coordinator
 
 ## Finding Your Motor Credentials
 
@@ -215,6 +267,12 @@ This integration is provided as-is under the MIT License.
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/woowtech/somfy-cover/issues).
 
 ## Version History
+
+### 1.0.1 (2025-11-22)
+- Added YAML configuration support
+- YAML and Config Flow can coexist
+- Each YAML cover gets its own coordinator
+- Backward compatible with v1.0.0
 
 ### 1.0.0 (2025-11-22)
 - Initial release

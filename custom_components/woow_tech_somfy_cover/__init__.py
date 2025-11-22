@@ -16,6 +16,7 @@ try:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.const import Platform
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
     from .api.client import SomfyClient
     from .const import DOMAIN, CONF_HOST, CONF_TARGET_ID, CONF_KEY
@@ -27,6 +28,33 @@ except ImportError:
     pass
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the WoowTech Somfy Cover component from YAML configuration.
+
+    This function enables YAML configuration support for the integration.
+    The actual platform setup is handled by async_setup_platform in cover.py.
+
+    Args:
+        hass: Home Assistant instance
+        config: Full Home Assistant configuration dict
+
+    Returns:
+        True if setup was successful
+
+    Note:
+        This function coexists with async_setup_entry for Config Flow support.
+        Users can configure covers via YAML, Config Flow, or both simultaneously.
+    """
+    _LOGGER.debug("YAML configuration setup initiated")
+
+    # Initialize domain storage if not already done
+    hass.data.setdefault(DOMAIN, {})
+
+    # Platform setup will be handled by async_setup_platform in cover.py
+    # when Home Assistant processes the cover platform configuration
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

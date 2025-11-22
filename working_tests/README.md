@@ -9,6 +9,7 @@ These test scripts demonstrate the core functionality needed for Home Assistant 
 - Motor movement control (up/down/stop)
 - Position querying and tracking
 - Response decryption and parsing
+- Home Assistant integration API testing
 
 ## CRITICAL PREREQUISITES
 
@@ -59,27 +60,274 @@ KEY_HEX = "FBE90399BA25B4B67DC1B23BE0D9C084"  # Your encryption key
 
 ### 2. Run Tests in Order
 
-**Start with the main working test** (sends commands and decrypts responses):
+**Test the Home Assistant integration API** (recommended order):
 ```bash
 cd /Users/alanlin/Documents/woowtech_somfy_new/working_tests
 
-# Main test - sends move commands and decrypts all responses
+# 1. Basic integration test - verify client API works
+PYTHONPATH=/Users/alanlin/core python3 test_ha_integration_debug.py
+
+# 2. Wake-up mechanism test - verify motor hibernation handling
+PYTHONPATH=/Users/alanlin/core python3 test_wakeup_mechanism.py
+
+# 3. Encrypted ping test - verify encryption works
+python3 test_01_udp_ping_encrypted.py
+
+# 4. Full command test - verify all operations
 python3 test_decrypt_responses.py
-```
-
-**Then test movement with position tracking** (WARNING: This will physically move your motor):
-```bash
-python3 test_motor_movement_with_position.py
-```
-
-**Run diagnostic tests** to verify connectivity:
-```bash
-python3 test_01_udp_ping.py
 ```
 
 ## Test Scripts Description
 
 ### Main Working Tests (Root Directory)
+
+#### `test_ha_integration_debug.py` (VERIFIED WORKING - INTEGRATION TEST)
+**Purpose**: Test the Home Assistant integration using the actual client API
+
+**What it does**:
+- Uses the exact same `SomfyClient` API that the HA integration uses
+- Mimics the config_flow.py connection validation process
+- Tests client.connect(), client.get_device_info(), client.get_position()
+- Verifies end-to-end integration functionality
+- Tests transport, encryption, and protocol layers
+
+**Use this to**:
+- Verify the HA integration client works correctly
+- Debug integration issues without running full HA
+- Test API changes before deploying to HA
+- Validate configuration (host, target_id, key) before adding to HA
+- Troubleshoot connection problems
+
+**Expected output**:
+```
+======================================================================
+TESTING HA INTEGRATION CONNECTION (exact config_flow pattern)
+======================================================================
+
+Configuration:
+  Host: 192.168.1.77
+  Target ID: 160326
+  Key: FBE90399BA25B4B67DC1B23BE0D9C084
+
+======================================================================
+
+1. Client created
+   Using transport: <custom_components.woow_tech_somfy_cover.api.transport.SomfyTransport object at 0x...>
+   Using encryption: <custom_components.woow_tech_somfy_cover.api.encryption.SomfyEncryption object at 0x...>
+   Using protocol: <custom_components.woow_tech_somfy_cover.api.protocol.SomfyProtocol object at 0x...>
+
+2. Connecting...
+   ✓ Connection successful!
+
+3. Getting device info...
+   ✓ Device info retrieved successfully!
+   Name: Sonesse 30 PoE
+   Model: Sonesse 30 PoE
+   Firmware: 5163364A07/5155239A32
+   MAC: 4C:C2:06:16:03:26
+
+4. Getting position...
+   ✓ Position: 0.0%
+   Status: stopped
+
+======================================================================
+SUCCESS - All tests passed!
+======================================================================
+
+5. Client closed
+```
+
+**Run with**:
+```bash
+# Must be run from HA core directory or have integration in Python path
+cd /Users/alanlin/core  # Or wherever your HA installation is
+python3 working_tests/test_ha_integration_debug.py
+
+# OR add custom_components to Python path:
+cd /Users/alanlin/Documents/woowtech_somfy_new/working_tests
+PYTHONPATH=/Users/alanlin/core python3 test_ha_integration_debug.py
+```
+
+**Configuration**:
+Edit the `config` dictionary in the script:
+```python
+config = {
+    "host": "192.168.1.77",        # Your motor's IP
+    "target_id": "160326",         # Your target ID (STRING)
+    "key": "FBE90399BA25B4B67DC1B23BE0D9C084",  # Your encryption key
+}
+```
+
+**Why this test is important**:
+- Tests the ACTUAL integration code (not a reimplementation)
+- Catches API changes or breaking modifications
+- Validates the entire client stack works correctly
+- Faster than restarting HA for every test
+- Same code path as config_flow validation
+
+---
+
+#### `test_wakeup_mechanism.py` (VERIFIED WORKING - WAKE-UP TEST)
+**Purpose**: Test the integration's wake-up mechanism for sleeping motors
+
+**What it does**:
+- Tests that first command after idle works without timeout
+- Verifies wake-up mechanism handles sleeping motor transparently
+- Tests subsequent commands work without wake-up overhead
+- Simulates motor hibernation scenarios
+- Runs 4 test scenarios:
+  1. First command after connection (motor likely sleeping)
+  2. Second command (motor awake, should be fast)
+  3. Movement command (harmless stop command)
+  4. After reconnection with idle time (motor may have slept again)
+
+**Use this to**:
+- Verify the wake-up mechanism works correctly
+- Test motor behavior after idle periods
+- Ensure no timeout issues with sleeping motors
+- Validate transparent wake-up (user doesn't notice delay)
+- Debug wake-up related connection problems
+
+**Expected output**:
+```
+======================================================================
+TESTING WAKE-UP MECHANISM
+======================================================================
+
+Device: 192.168.1.77:55055
+Target ID: 160326
+
+This test verifies that the wake-up mechanism works correctly.
+The motor should respond to the first command without timing out.
+======================================================================
+
+[TEST 1] First command after connection (motor likely sleeping)
+----------------------------------------------------------------------
+Sending: status.position (first command)
+SUCCESS - Got position: 0.0%
+  Status: stopped
+  Direction: none
+
+Waiting 2 seconds...
+
+[TEST 2] Second command (motor awake, should be fast)
+----------------------------------------------------------------------
+Sending: status.info
+SUCCESS - Got device info:
+  Name: Sonesse 30 PoE
+  MAC: 4C:C2:06:16:03:26
+  Firmware: 5163364A07/5155239A32
+
+[TEST 3] Movement command (stop - harmless)
+----------------------------------------------------------------------
+Sending: move.stop
+SUCCESS - Stop command accepted
+
+[TEST 4] After reconnection (motor may have slept)
+----------------------------------------------------------------------
+Waiting 3 seconds (simulating idle time)...
+Sending: status.position (after reconnect)
+SUCCESS - Got position: 0.0%
+
+======================================================================
+ALL TESTS PASSED
+======================================================================
+
+Wake-up mechanism is working correctly:
+  - First commands after connection work without timeout
+  - Wake-up command is sent transparently
+  - Subsequent commands work without overhead
+======================================================================
+```
+
+**Run with**:
+```bash
+# Must be run from HA core directory or have integration in Python path
+cd /Users/alanlin/core
+python3 working_tests/test_wakeup_mechanism.py
+
+# OR add custom_components to Python path:
+cd /Users/alanlin/Documents/woowtech_somfy_new/working_tests
+PYTHONPATH=/Users/alanlin/core python3 test_wakeup_mechanism.py
+```
+
+**Configuration**:
+Edit the device configuration in the script:
+```python
+HOST = "192.168.1.77"
+UDP_PORT = 55055
+TARGET_ID = "160326"
+KEY_HEX = "FBE90399BA25B4B67DC1B23BE0D9C084"
+```
+
+**Technical details**:
+The wake-up mechanism works by:
+1. Detecting when motor might be sleeping (first command after connection/timeout)
+2. Sending a harmless `move.stop` command with short timeout to wake motor
+3. Proceeding with actual command after motor is awake
+4. Only adds ~1s overhead when needed, zero overhead for subsequent commands
+
+**Why wake-up is needed**:
+Somfy PoE motors enter hibernation mode after idle periods to save power. When hibernating:
+- First command may timeout or be ignored
+- Motor takes ~500ms to wake up
+- Wake-up mechanism ensures reliability without user noticing
+
+---
+
+#### `test_01_udp_ping_encrypted.py` (VERIFIED WORKING - ENCRYPTED PING)
+**Purpose**: Test encrypted ping command (all commands require encryption!)
+
+**What it does**:
+- Sends encrypted status.ping request using AES-128-CBC
+- Demonstrates that ping REQUIRES encryption (unlike documentation claims)
+- Tests basic encrypted communication without full integration client
+- Validates encryption key and target ID are correct
+
+**Use this to**:
+- Verify encryption setup is working
+- Test basic connectivity with encryption
+- Confirm motor responds to encrypted commands
+- Debug encryption issues
+
+**Expected output**:
+```
+============================================================
+TEST: UDP PING (Encrypted)
+============================================================
+
+Plaintext request:
+{"method":"status.ping","params":{"targetID":"160326"},"id":1}
+
+Encrypted message: 64 bytes
+IV: a1b2c3d4e5f6...
+
+Sent to 192.168.1.77:55055
+
+Waiting for response...
+
+Encrypted response received from ('192.168.1.77', 55055): 32 bytes
+
+Decrypted response:
+{"result":true,"id":1}
+
+Parsed JSON:
+{
+  "result": true,
+  "id": 1
+}
+
+✓ SUCCESS: Motor responded to encrypted ping
+```
+
+**Run with**:
+```bash
+python3 test_01_udp_ping_encrypted.py
+```
+
+**Key Discovery**: This test proves that **ALL commands require encryption**, including ping. The documentation stating ping doesn't need encryption is incorrect.
+
+---
 
 #### `test_decrypt_responses.py` (VERIFIED WORKING - MAIN TEST)
 **Purpose**: Send encrypted commands and decrypt/analyze responses
@@ -519,36 +767,29 @@ working_tests/
 ├── README.md (this file)
 │
 ├── Main Working Tests (Root):
-│   ├── test_decrypt_responses.py              (VERIFIED WORKING - main test)
-│   ├── test_motor_movement_with_position.py   (VERIFIED WORKING - movement)
-│   └── test_working_encryption.py             (padding comparison)
+│   ├── test_ha_integration_debug.py           (VERIFIED - HA integration API test)
+│   ├── test_wakeup_mechanism.py               (VERIFIED - wake-up mechanism test)
+│   ├── test_01_udp_ping_encrypted.py          (VERIFIED - encrypted ping)
+│   └── test_decrypt_responses.py              (VERIFIED - low-level command test)
 │
-├── Diagnostic Tests:
-│   ├── test_01_udp_ping.py           (basic connectivity)
-│   ├── test_02_udp_ping_wildcard.py  (broadcast discovery)
-│   ├── test_03_tcp_tls_auth.py       (TCP/TLS test)
-│   ├── test_04_https_check.py        (HTTPS endpoint test)
-│   ├── test_05_udp_encrypted.py      (basic encryption test)
-│   ├── test_06_port_scan.py          (port scanning)
-│   ├── test_07_tcp_tls_legacy.py     (legacy TLS test)
-│   └── test_somfy_direct.py          (comprehensive diagnostics)
-│
-└── Legacy Tests (Reference):
-    ├── test_alternative_formats.py
-    ├── test_port443.py
-    ├── test_single_command.py
-    ├── test_udp_encrypted.py
-    └── test_working_connection.py
+└── Subdirectories:
+    ├── diagnostic_tests/
+    ├── encryption_tests/
+    ├── movement_tests/
+    └── status_tests/
 ```
+
+**Note**: Legacy broken tests have been removed. Only verified working tests remain.
 
 ## Next Steps
 
 After verifying these tests work:
 
-1. Install Home Assistant integration from `custom_components/somfy_poe`
-2. Configure via UI with same IP, Target ID, and Key
-3. Monitor Home Assistant logs for issues
-4. Use these test scripts to debug any integration problems
+1. Verify the integration works: `python3 test_ha_integration_debug.py`
+2. Install Home Assistant integration from `custom_components/woow_tech_somfy_cover`
+3. Configure via UI (Config Flow) or YAML with same IP, Target ID, and Key
+4. Monitor Home Assistant logs for issues
+5. Use these test scripts to debug any integration problems
 
 ## License
 

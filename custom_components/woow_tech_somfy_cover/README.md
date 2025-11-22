@@ -1,6 +1,6 @@
 # WoowTech Somfy Cover Integration
 
-[![version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/woowtech/somfy-cover)
+[![version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/woowtech/somfy-cover)
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
 Home Assistant custom integration for Somfy PoE motors with encrypted UDP communication.
@@ -57,9 +57,13 @@ cover:
   - platform: woow_tech_somfy_cover
     name: Living Room Shade
     host: 192.168.1.77
-    target_id: "160326"
-    key: "FBE90399BA25B4B67DC1B23BE0D9C084"
+    target_id: 160326
+    key: FBE90399BA25B4B67DC1B23BE0D9C084
 ```
+
+**Note**: Since v1.0.2, you can use values with or without quotes:
+- `target_id: 160326` or `target_id: "160326"` (both work)
+- `key: FBE90399BA25B4B67DC1B23BE0D9C084` or `key: "FBE90399BA25B4B67DC1B23BE0D9C084"` (both work)
 
 **Multiple covers:**
 
@@ -68,14 +72,14 @@ cover:
   - platform: woow_tech_somfy_cover
     name: Living Room Shade
     host: 192.168.1.77
-    target_id: "160326"
-    key: "FBE90399BA25B4B67DC1B23BE0D9C084"
+    target_id: 160326
+    key: FBE90399BA25B4B67DC1B23BE0D9C084
 
   - platform: woow_tech_somfy_cover
     name: Bedroom Shade
     host: 192.168.1.78
-    target_id: "160327"
-    key: "ABC90399BA25B4B67DC1B23BE0D9C085"
+    target_id: 160327
+    key: ABC90399BA25B4B67DC1B23BE0D9C085
 ```
 
 **Configuration Variables:**
@@ -83,8 +87,8 @@ cover:
 - `platform` (Required): Must be `woow_tech_somfy_cover`
 - `name` (Optional): Friendly name for the cover. Default: `Somfy Cover`
 - `host` (Required): IP address of the Somfy motor
-- `target_id` (Required): 6-digit hexadecimal target ID
-- `key` (Required): 32-digit hexadecimal encryption key
+- `target_id` (Required): 6-digit hexadecimal target ID (quotes optional since v1.0.2)
+- `key` (Required): 32-digit hexadecimal encryption key (quotes optional since v1.0.2)
 
 After adding YAML configuration, restart Home Assistant to apply changes.
 
@@ -267,6 +271,12 @@ This integration is provided as-is under the MIT License.
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/woowtech/somfy-cover/issues).
 
 ## Version History
+
+### 1.0.2 (2025-11-22)
+- Improved YAML configuration UX
+- `target_id` and `key` values can now be specified with or without quotes
+- Automatic type coercion for better user experience
+- Backward compatible with v1.0.0 and v1.0.1
 
 ### 1.0.1 (2025-11-22)
 - Added YAML configuration support

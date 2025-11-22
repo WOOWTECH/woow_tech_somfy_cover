@@ -35,11 +35,13 @@ from .api.models import MovementState, Direction
 _LOGGER = logging.getLogger(__name__)
 
 # YAML platform schema for validation
+# Note: Using vol.Coerce(str) allows users to specify target_id and key
+# with or without quotes in YAML (e.g., both 160326 and "160326" work)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_TARGET_ID): cv.string,
-        vol.Required(CONF_KEY): cv.string,
+        vol.Required(CONF_TARGET_ID): vol.Coerce(str),
+        vol.Required(CONF_KEY): vol.Coerce(str),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )

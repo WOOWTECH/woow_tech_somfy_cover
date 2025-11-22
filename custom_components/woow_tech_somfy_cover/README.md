@@ -1,6 +1,6 @@
 # WoowTech Somfy Cover Integration
 
-[![version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/woowtech/somfy-cover)
+[![version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/woowtech/somfy-cover)
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
 Home Assistant custom integration for Somfy PoE motors with encrypted UDP communication.
@@ -271,6 +271,13 @@ This integration is provided as-is under the MIT License.
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/woowtech/somfy-cover/issues).
 
 ## Version History
+
+### 1.0.3 (2025-11-22)
+- Comprehensive documentation suite added (66,000+ words)
+- Architecture, API reference, configuration, and testing guides
+- Removed old planning documents and renamed integration folder
+- Documentation only - no code changes
+- Backward compatible with all previous versions
 
 ### 1.0.2 (2025-11-22)
 - Improved YAML configuration UX

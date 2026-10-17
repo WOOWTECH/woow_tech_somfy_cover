@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "設定 WoowTech Somfy 窗簾",
+        "description": "請輸入 Somfy PoE 馬達的連線資訊。Target ID 與加密金鑰印在馬達標籤上，也可以在 Somfy App 中查到。",
+        "data": {
+          "name": "名稱",
+          "host": "IP 位址",
+          "target_id": "Target ID（6 位十六進位）",
+          "key": "加密金鑰（32 位十六進位）"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "無法連線到裝置。請檢查 IP 位址，並確認馬達已通電、已連上網路。",
+      "invalid_target_id": "Target ID 必須是 6 個字元的十六進位字串（例如 '160326'）。",
+      "invalid_key": "加密金鑰必須是 32 個字元的十六進位字串。",
+      "unknown": "發生未預期的錯誤，詳細原因請查看系統日誌。"
+    },
+    "abort": {
+      "already_configured": "這台裝置已經設定過了。要重新加入，請先移除現有的設定。"
+    }
+  }
+}
